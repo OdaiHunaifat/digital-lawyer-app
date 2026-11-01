@@ -19,8 +19,8 @@ jobs:
           rm -rf android
           flutter create . --project-name digital_lawyer_app --platforms=android --org com.odai.digitallawyer
       - run: flutter pub get
-      - run: flutter build apk --release --no-pub
+      - run: flutter build apk --debug
       - uses: actions/upload-artifact@v4
         with:
-          name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
