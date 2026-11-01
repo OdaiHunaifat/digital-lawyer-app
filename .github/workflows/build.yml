@@ -17,7 +17,7 @@ jobs:
       - name: Recreate Android files cleanly
         run: |
           rm -rf android
-          flutter create . --platforms=android --org com.odai.digitallawyer
+          flutter create . --project-name digital_lawyer_app --platforms=android --org com.odai.digitallawyer
       - run: flutter pub get
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
