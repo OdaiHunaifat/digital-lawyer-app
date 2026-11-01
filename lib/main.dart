@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const DigitalLawyerApp());
@@ -73,57 +75,20 @@ class DashboardPage extends StatelessWidget {
                       context,
                       'القضايا',
                       Icons.folder_open,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CasesPage(),
-                          ),
-                        );
-                      },
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CasesPage(),
+                        ),
+                      ),
                     ),
-                    serviceCard(
-                      context,
-                      'الموكلون',
-                      Icons.people,
-                      () => comingSoon(context),
-                    ),
-                    serviceCard(
-                      context,
-                      'الأجندة القضائية',
-                      Icons.calendar_month,
-                      () => comingSoon(context),
-                    ),
-                    serviceCard(
-                      context,
-                      'المدد القانونية',
-                      Icons.timer,
-                      () => comingSoon(context),
-                    ),
-                    serviceCard(
-                      context,
-                      'الأتعاب والمدفوعات',
-                      Icons.account_balance_wallet,
-                      () => comingSoon(context),
-                    ),
-                    serviceCard(
-                      context,
-                      'المكتبة القانونية',
-                      Icons.menu_book,
-                      () => comingSoon(context),
-                    ),
-                    serviceCard(
-                      context,
-                      'صياغة اللوائح',
-                      Icons.description,
-                      () => comingSoon(context),
-                    ),
-                    serviceCard(
-                      context,
-                      'المساعد الذكي',
-                      Icons.smart_toy,
-                      () => comingSoon(context),
-                    ),
+                    serviceCard(context, 'الموكلون', Icons.people, () => comingSoon(context)),
+                    serviceCard(context, 'الأجندة القضائية', Icons.calendar_month, () => comingSoon(context)),
+                    serviceCard(context, 'المدد القانونية', Icons.timer, () => comingSoon(context)),
+                    serviceCard(context, 'الأتعاب والمدفوعات', Icons.account_balance_wallet, () => comingSoon(context)),
+                    serviceCard(context, 'المكتبة القانونية', Icons.menu_book, () => comingSoon(context)),
+                    serviceCard(context, 'صياغة اللوائح', Icons.description, () => comingSoon(context)),
+                    serviceCard(context, 'المساعد الذكي', Icons.smart_toy, () => comingSoon(context)),
                   ],
                 ),
               ),
@@ -189,7 +154,40 @@ class CasesPage extends StatefulWidget {
 }
 
 class _CasesPageState extends State<CasesPage> {
-  final List<Map<String, String>> cases = [];
+  List<Map<String, String>> cases = [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadCases();
+  }
+
+  Future<void> loadCases() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedData = prefs.getString('digital_lawyer_cases');
+
+    if (savedData != null) {
+      final List decoded = jsonDecode(savedData);
+      cases = decoded
+          .map((item) => Map<String, String>.from(item))
+          .toList();
+    }
+
+    if (mounted) {
+      setState(() {
+        loading = false;
+      });
+    }
+  }
+
+  Future<void> saveCases() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'digital_lawyer_cases',
+      jsonEncode(cases),
+    );
+  }
 
   void addCase() {
     final numberController = TextEditingController();
@@ -221,7 +219,7 @@ class _CasesPageState extends State<CasesPage> {
                 child: const Text('إلغاء'),
               ),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (numberController.text.trim().isEmpty ||
                       clientController.text.trim().isEmpty) {
                     return;
@@ -236,7 +234,11 @@ class _CasesPageState extends State<CasesPage> {
                     });
                   });
 
-                  Navigator.pop(dialogContext);
+                  await saveCases();
+
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                  }
                 },
                 child: const Text('حفظ القضية'),
               ),
@@ -277,60 +279,66 @@ class _CasesPageState extends State<CasesPage> {
           icon: const Icon(Icons.add),
           label: const Text('إضافة قضية'),
         ),
-        body: cases.isEmpty
-            ? const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.folder_open, size: 65, color: gold),
-                    SizedBox(height: 15),
-                    Text(
-                      'لا توجد قضايا حتى الآن',
-                      style: TextStyle(fontSize: 17),
+        body: loading
+            ? const Center(child: CircularProgressIndicator())
+            : cases.isEmpty
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.folder_open, size: 65, color: gold),
+                        SizedBox(height: 15),
+                        Text(
+                          'لا توجد قضايا حتى الآن',
+                          style: TextStyle(fontSize: 17),
+                        ),
+                        SizedBox(height: 5),
+                        Text(
+                          'اضغط على إضافة قضية للبدء',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 5),
-                    Text(
-                      'اضغط على إضافة قضية للبدء',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: cases.length,
-                itemBuilder: (context, index) {
-                  final item = cases[index];
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: cases.length,
+                    itemBuilder: (context, index) {
+                      final item = cases[index];
 
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: navy,
-                        child: Icon(Icons.folder, color: Colors.white),
-                      ),
-                      title: Text(
-                        'قضية رقم ${item['number']}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        'الموكل: ${item['client']}\n'
-                        'المحكمة: ${item['court']}\n'
-                        'الموضوع: ${item['subject']}',
-                      ),
-                      isThreeLine: true,
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () {
-                          setState(() {
-                            cases.removeAt(index);
-                          });
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: ListTile(
+                          leading: const CircleAvatar(
+                            backgroundColor: navy,
+                            child: Icon(Icons.folder, color: Colors.white),
+                          ),
+                          title: Text(
+                            'قضية رقم ${item['number']}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            'الموكل: ${item['client']}\n'
+                            'المحكمة: ${item['court']}\n'
+                            'الموضوع: ${item['subject']}',
+                          ),
+                          isThreeLine: true,
+                          trailing: IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                            ),
+                            onPressed: () async {
+                              setState(() {
+                                cases.removeAt(index);
+                              });
+                              await saveCases();
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
       ),
     );
   }
